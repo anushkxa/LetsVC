@@ -12,12 +12,12 @@ function HeaderPage() {
                     <span className="logo-text">Let-s-VC</span>
                 </Link>
 
-                <div className="nav-actions">
-                    <Link to="/login" className="btn btn-dark">
+                <div role="button" className="nav-actions">
+                    <Link to="/auth" className="btn btn-dark">
                         Sign In
                     </Link>
 
-                    <Link to="/signup" className="btn btn-primary">
+                    <Link to="/auth" className="btn btn-primary">
                         Get Started
                     </Link>
                 </div>
