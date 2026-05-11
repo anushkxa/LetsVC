@@ -16,6 +16,7 @@
 .brand {
   font-size: 1.4rem;
   font-weight: 700;
+  color: purple;
 }
 
 .landing-links {
@@ -103,6 +104,11 @@
   color: #fff;
 }
 
+.btn.purple {
+  background: #1b0a38;
+  color: #fff;
+}
+
 .btn.soft {
   background: #fde68a;
   color: #111827;
@@ -142,6 +148,14 @@
 .hero-art {
   position: relative;
   height: 440px;
+  display: grid;
+  place-items: center;
+}
+
+.hero-art-image {
+  width: min(100%, 520px);
+  height: auto;
+  object-fit: contain;
 }
 
 .blob {
