@@ -3,9 +3,9 @@ import { useAuth } from './contexts/AuthContext.jsx'
 import Footer from './footer.jsx'
 import './App.css'
 import HomePage from './pages/landing/home.jsx'
-import MeetingPage from './pages/landing/meeting.jsx'
+import MeetingComponent from './pages/landing/meeting.jsx'
 import AuthPage from './pages/auth/auth.jsx'
-import heroMainImage from '../dist/assets/main.png'
+const heroMainImage = '/icons.svg'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:8000'
 
@@ -27,14 +27,7 @@ function App() {
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/" element={<HomePage createMeetingId={createMeetingId} heroMainImage={heroMainImage} />} />
-        <Route
-          path="/meeting/:id"
-          element={
-            <ProtectedRoute>
-              <MeetingPage socketUrl={SOCKET_URL} />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/meeting/:url" element={<MeetingComponent />} />
       </Routes>
       <Footer />
     </>

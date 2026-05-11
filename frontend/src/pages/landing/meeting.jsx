@@ -1,87 +1,65 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { io } from 'socket.io-client'
-import { useAuth } from '../../contexts/AuthContext.jsx'
+import { useEffect, useRef, useState } from "react";
+import "../../styles/meeting.css";
 
-export default function MeetingPage({ socketUrl }) {
-    const { id } = useParams()
-    const { username } = useAuth()
-    const [connectedUsers, setConnectedUsers] = useState([])
-    const [messages, setMessages] = useState([])
-    const [chatInput, setChatInput] = useState('')
-  
-    const socket = useMemo(() => io(socketUrl, { transports: ['websocket'] }), [socketUrl])
-  
-    useEffect(() => {
-      socket.emit('join-call', id)
-  
-      socket.on('user-joined', (_socketId, participants) => {
-        setConnectedUsers(participants)
-      })
-  
-      socket.on('user-left', (socketId) => {
-        setConnectedUsers((prev) => prev.filter((idValue) => idValue !== socketId))
-      })
-  
-      socket.on('chat-message', (data, sender, senderId) => {
-        setMessages((prev) => [...prev, { id: `${senderId}-${Date.now()}`, sender, data }])
-      })
-  
-      return () => {
-        socket.removeAllListeners()
-        socket.disconnect()
+export default function MeetingComponent() {
+  const localVideoRef = useRef(null);
+  const [askForUsername, setAskForUsername] = useState(true);
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) return;
+
+        const audioPermission = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) return;
+
+        const useVideo = !!videoPermission;
+        const useAudio = !!audioPermission;
+        if (!useVideo && !useAudio) return;
+
+        const userMediaStream = await navigator.mediaDevices.getUserMedia({
+          video: useVideo,
+          audio: useAudio,
+        });
+        if (cancelled || !userMediaStream) return;
+        window.localStream = userMediaStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = userMediaStream;
+        }
+      } catch (err) {
+        console.log(err);
       }
-    }, [id, socket])
-  
-    function sendMessage(e) {
-      e.preventDefault()
-      const cleanMsg = chatInput.trim()
-      if (!cleanMsg) return
-      socket.emit('chat-message', cleanMsg, username)
-      setChatInput('')
-    }
-  
-    return (
-      <main className="page">
-        <header className="topbar">
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div>
+      {askForUsername === true ? (
+        <div>
+          <h2> Enter into Lobby</h2>
+          <label htmlFor="username-input">Username</label>
+          <input
+            id="username-input"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button type="button" onClick={() => setAskForUsername(false)}>
+            Connect
+          </button>
+
           <div>
-            <h1>Meeting Room</h1>
-            <p className="muted">Meeting ID: <strong>{id}</strong></p>
+            <video ref={localVideoRef} autoPlay muted />
           </div>
-          <Link to="/" className="btn ghost">Back</Link>
-        </header>
-  
-        <section className="meeting-layout">
-          <article className="card">
-            <h2>Call area</h2>
-            <p className="muted">
-              Socket connected participants: {connectedUsers.length || 1}
-            </p>
-            <div className="video-placeholder">Video streams will render here.</div>
-          </article>
-  
-          <aside className="card chat">
-            <h2>Chat</h2>
-            <div className="chat-list">
-              {messages.length === 0 && (
-                <p className="muted">No messages yet. Say hello to everyone.</p>
-              )}
-              {messages.map((msg) => (
-                <p key={msg.id}>
-                  <strong>{msg.sender}:</strong> {msg.data}
-                </p>
-              ))}
-            </div>
-            <form className="chat-form" onSubmit={sendMessage}>
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type message..."
-              />
-              <button type="submit" className="btn secondary">Send</button>
-            </form>
-          </aside>
-        </section>
-      </main>
-    )
-  }
+        </div>
+      ) : (
+        <></>
+      )}
+    </div>
+  );
+}

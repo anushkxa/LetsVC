@@ -23,10 +23,7 @@ export default function HomePage({ createMeetingId, heroMainImage }) {
       <main className="landing">
         <header className="landing-nav">
           <h1 className="brand" style={{color: 'purple'}}>LetsVC</h1>
-          <nav className="landing-links">
-            <a href="#home">HOME</a>
-            <a href="#contact">CONTACT US</a>
-          </nav>
+    
           <div className="landing-auth">
             {isAuthenticated ? (
               <>

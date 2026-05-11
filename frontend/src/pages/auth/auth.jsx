@@ -11,7 +11,7 @@ export default function AuthPage() {
     const [loading, setLoading] = useState(false)
   
     if (isAuthenticated) {
-      return <Navigate to="/" replace />
+      return <Navigate to="/"  />
     }
   
     async function handleSubmit(e) {

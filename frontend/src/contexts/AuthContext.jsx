@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context + hook in one module */
 import { createContext, useContext, useMemo, useState } from 'react'
 import axios from 'axios'
 
