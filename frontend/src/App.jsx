@@ -1,42 +1,24 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { useAuth } from './contexts/AuthContext.jsx'
-import Footer from './footer.jsx'
 import './App.css'
-import HomePage from './pages/landing/home.jsx'
-import MeetingPage from './pages/landing/meeting.jsx'
-import AuthPage from './pages/auth/auth.jsx'
-import heroMainImage from '../dist/assets/main.png'
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:8000'
-
-function createMeetingId() {
-  return crypto.randomUUID().slice(0, 8)
-}
-
-function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth()
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />
-  }
-  return children
-}
-
+import {Route, BrowserRouter as Router, Routes} from 'react-router-dom';
+import LandingPage from  "./pages/landing/landing.jsx";
+import HeaderPage from './pages/headerPage.jsx';
+import Authentication from './pages/auth/authentication.jsx';
+import FooterPage from './pages/footer.jsx';
+import { AuthProvider } from './contexts/AuthContext.jsx';
 function App() {
+
   return (
     <>
+    <Router>
+      <AuthProvider>
+      <HeaderPage/>
       <Routes>
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/" element={<HomePage createMeetingId={createMeetingId} heroMainImage={heroMainImage} />} />
-        <Route
-          path="/meeting/:id"
-          element={
-            <ProtectedRoute>
-              <MeetingPage socketUrl={SOCKET_URL} />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/" element={<LandingPage/>}/>
+        <Route path='/auth' element={<Authentication/>}/>
       </Routes>
-      <Footer />
+      <FooterPage/>
+      </AuthProvider>
+    </Router>
     </>
   )
 }
