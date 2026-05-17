@@ -1,60 +1,130 @@
 import { useEffect, useRef, useState } from "react";
 import "../../styles/meeting.css";
+import { io } from "socket.io-client";
+const server_url="http://localhost:8000";
+
+var connections={};
+const peerConfiguration={
+  "iceServers":[
+    {"urls":"stun:stun.l.google.com:19302"}
+  ]
+}
 
 export default function MeetingComponent() {
-  const localVideoRef = useRef(null);
-  const [askForUsername, setAskForUsername] = useState(true);
-  const [username, setUsername] = useState("");
+  var socketRef = useRef();
+  let socketIdRef=useRef();
+  let localVideoRef=useRef();
+  let[videoAvailable,setVideoAvailable]=useState(true);
+  let[audioAvailable,setAudioAvailable]=useState(true);
+  let [video,setVideo]=useState(false);
+  let [audio,setAudio]=useState(false);
+  let[screen,setScreen]=useState();
+  let[showModal,setModal]=useState();
+  let[screenAvailable,setScreenAvailable]=useState();
+  let[messages,setMessages]=useState([]);
+  let[message,setMessage]=useState("");
+  let[newMessages,setNewMessages]=useState(0);
+  let[askForUsername, setAskForUsername] = useState(true);
+  let [username, setUsername] = useState("");
+  const videoRef = useRef([]);
+  let[videos,setVideos]=useState([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
+
+ const getPermissions=async () =>{
+  try{
         const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (cancelled) return;
+        if(videoPermission){
+          setVideoAvailable(true);
+        }else{ setVideoAvailable(false);}
 
         const audioPermission = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (cancelled) return;
+        if(audioPermission){
+          setAudioAvailable(true);
+        }else{ setAudioAvailable(false);}
 
-        const useVideo = !!videoPermission;
-        const useAudio = !!audioPermission;
-        if (!useVideo && !useAudio) return;
-
-        const userMediaStream = await navigator.mediaDevices.getUserMedia({
-          video: useVideo,
-          audio: useAudio,
-        });
-        if (cancelled || !userMediaStream) return;
-        window.localStream = userMediaStream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = userMediaStream;
+        if(navigator.mediaDevices.getDisplayMedia){
+          setScreenAvailable(true);
+        }else{
+          setScreenAvailable(false);
         }
-      } catch (err) {
-        console.log(err);
+
+        if(videoAvailable || audioAvailable){
+          const userMediaStream= await navigator.mediaDevices.getUserMedia({video:videoAvailable, audio:audioAvailable});
+          if(userMediaStream){
+            window.localStream=userMediaStream;
+            if(localVideoRef.current){
+              localVideoRef.current.srcObject=userMediaStream;
+            }
+          }
+        }
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  catch(err){
+    console.log(err);
+  }
+ }
+
+  useEffect(()=>{
+    getPermissions();
+  },[])
+
+  let getUserMediaSuccess=(stream)=>{
+
+  }
+
+  let getUserMedia=()=>{
+    if((video||videoAvailable) && (audio||audioAvailable)){
+      navigator.mediaDevices.getUserMedia({video:video,audio:audio})
+      .then(getUserMediaSuccess)
+      .then((stream)=>{})
+      .catch((e)=>console.log(e));
+  }else{
+    try{
+      let tracks=localVideoRef.current.srcObject.getTracks();
+      tracks.forEach(track=>track.stop());
+    }catch(e){}
+  }
+  }
+
+ useEffect(()=>{
+  if(video!==undefined && audio !== undefined){
+    getUserMedia();
+  }
+ },[audio,video]);
+
+ let connectToSocketServer=()=>{
+  socketRef.current= io.connect(server_url,{secure:false});
+ }
+
+  let getMedia=()=>{
+    setVideo(videoAvailable);
+    setAudio(audioAvailable);
+
+    connectToSocketServer();
+  }
+
+  let connect=()=>{
+    setAskForUsername(false);
+    getMedia();
+  }
+  
 
   return (
     <div>
       {askForUsername === true ? (
         <div>
           <h2> Enter into Lobby</h2>
-          <label htmlFor="username-input">Username</label>
           <input
             id="username-input"
+            placeholder="Enter your username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <button type="button" onClick={() => setAskForUsername(false)}>
+          <button type="button"  variant="contained" onClick={connect}>
             Connect
           </button>
 
           <div>
-            <video ref={localVideoRef} autoPlay muted />
+            <video ref={localVideoRef} autoPlay muted playsInline/>
           </div>
         </div>
       ) : (
@@ -63,3 +133,4 @@ export default function MeetingComponent() {
     </div>
   );
 }
+

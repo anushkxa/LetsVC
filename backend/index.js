@@ -7,6 +7,7 @@ import cors from "cors";
 
 import { connectToSocket } from "./src/controllers/socketManager.js";
 import userRoutes from "./src/routes/users_routes.js";
+import "./src/models/index.js";
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ app.get("/", (req, res) => {
 
 mongoose.connect(url)
   .then(() => {
-    console.log("DB connected");
+    console.log("DB connected, database:");
 
     server.listen(app.get("port"), () => {
       console.log(`Server running on port ${app.get("port")}`);

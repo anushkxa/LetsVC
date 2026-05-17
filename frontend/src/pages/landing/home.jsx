@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import heroMain from '../../assets/heroMain.png'
 
-export default function HomePage({ createMeetingId, heroMainImage }) {
+export default function HomePage({ createMeetingId}) {
     const [meetingInput, setMeetingInput] = useState('')
     const navigate = useNavigate()
     const { username, logout, isAuthenticated } = useAuth()
@@ -59,17 +60,15 @@ export default function HomePage({ createMeetingId, heroMainImage }) {
               <button className="btn" type="submit">Join meeting</button>
             </form>
           </div>
-  
+
           <div className="hero-art" aria-hidden="true">
-            <img src={heroMainImage} alt="" className="hero-art-image" />
+            <img src={heroMain} alt="" className="hero-art-image" />
           </div>
         </section>
-  
-        <section className="dots" id="services">
+
           <span />
           <span />
           <span />
-        </section>
       </main>
     )
   }

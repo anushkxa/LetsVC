@@ -14,7 +14,7 @@ const login = async(req,res)=>{
             return res.status(httpStatus.NOT_FOUND).json({message:"User not Found"});
         }
         if(bcrypt.compare(password, user.password)){
-            let token = crypto.randomBytes(20).toString("hex");
+            let token = crypto.randomBytes(20).toString("hex");  //token local storage me aajega
             user.token= token;
             await user.save();
             return res.status(httpStatus.OK).json({token:token});
