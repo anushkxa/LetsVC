@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "../../styles/meeting.css";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 const server_url="http://localhost:8000";
 
 var connections={};
@@ -91,9 +91,95 @@ export default function MeetingComponent() {
   }
  },[audio,video]);
 
+
+ let gotMessageFromServer=(fromId,message)=>{
+  var signal = JSON.parse(message)
+  if(fromId !== socketIdRef.current){
+    if(signal.sdp){
+      connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(()=>{
+        if(signal.sdp.type==="offer"){
+          connections[fromId].createAnswer().then((description)=>{
+            connectToSocketServer[fromId].setLocalDescription(description).then(()=>{
+              socketIdRef.current.emit("signal",fromId, JSON.stringify({"sdp":connections[fromId].localDescription}))
+            })
+          })
+        }
+      })
+    }
+  }
+ }
+
  let connectToSocketServer=()=>{
   socketRef.current= io.connect(server_url,{secure:false});
- }
+  socketRef.current.on('signal',gotMessageFromServer);
+  socketRef.current.on("connect",()=>{
+    socketRef.current.emit("join-call",window.location.href);
+    socketIdRef.current=socketRef.current.id;
+    socketRef.current.on("chat-message",addMessage);
+    socketRef.current.on("user-left",(id)=>{
+      setVideos((videos) =>
+        videos.filter((video) => video.socketId !== id)
+      );
+    })
+    socketRef.current.on("user-joined",(id,clients)=>{
+      clients.forEach((SocketListId)=>{
+        connections[SocketListId]= new RTCPeerConnection(peerConfiguration);
+        connections[SocketListId].onicecandidate=(event)=>{
+          if(event.candidate != null){
+            socketRef.current.emit("signal",SocketListId,JSON.stringify({"ice":event.candidate}));
+          }
+        }
+        connections[SocketListId].onaddstream=(event)=>{
+          let videoExists=videoRef.current.find(video => video.socketId===SocketListId);
+          if(videoExists){
+            setVideo(videos=>{
+              const updateVideos= videos.map(video=>
+                video.socketId === SocketListId ?{...video, stream: event.stream}:video
+              );
+              videoRef.current=updateVideos;
+              return updateVideos;
+            })
+          }else{
+            let newVideo={
+              socketId: SocketListId,
+              stream: event.stream,
+              autoPlay:true,
+              playsInline:true
+            }
+            setVideos(videos=>{
+              const updatedVideos = [...videos, newVideo];
+              videoRef.current=updatedVideos;
+              return updatedVideos;
+            });
+          }
+        };
+
+        if(window.localStream !== undefined && window.localStream !==null){
+          connections[SocketListId].addStream(window.localStream);
+        }else{
+        }
+      })
+
+      if(id=== socketIdRef.current){
+        for(let id2 in connections){
+          if(id2 === socketIdRef.current) continue
+          try{
+            connections[id2].addStream(window.localStream)
+          }catch(e){
+          }
+          connections[id2].createOffer().then((description)=>{
+            connections[id2].setLocalDescription(description)
+            .then(()=>{
+              socketRef.current.emit("signal",id2,JSON.stringify({"sdp":connections[id2].localDescription}))
+            })
+
+            .catch(e=>console.log(e))
+          })
+        }
+      }
+  })
+ })
+}
 
   let getMedia=()=>{
     setVideo(videoAvailable);
@@ -133,4 +219,3 @@ export default function MeetingComponent() {
     </div>
   );
 }
-

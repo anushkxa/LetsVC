@@ -68,7 +68,7 @@ export const connectToSocket= (server)=>{
             var diffTime  = Math.abs(timeOnline[socket.id]-new Date())
             var key
 
-            for(cost [key,v] of JSON.parse(JSON.stringify(Object.entries(connections)))){
+            for(const [key,v] of JSON.parse(JSON.stringify(Object.entries(connections)))){
                 for(let a=0;a<v.length;a++){
                     if(v[a]==socket.id){
                         key = k;
