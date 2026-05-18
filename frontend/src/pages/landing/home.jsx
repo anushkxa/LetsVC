@@ -17,7 +17,7 @@ export default function HomePage({ createMeetingId}) {
       e.preventDefault()
       const cleanId = meetingInput.trim()
       if (!cleanId) return
-      navigate(`/meeting/${cleanId}`)
+      navigate(`/${cleanId}`)
     }
   
     return (
