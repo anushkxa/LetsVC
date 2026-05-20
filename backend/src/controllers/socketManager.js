@@ -64,27 +64,22 @@ export const connectToSocket= (server)=>{
             }
         })
 
-        socket.on("disconnect",()=>{
-            var diffTime  = Math.abs(timeOnline[socket.id]-new Date())
-            var key
-
-            for(const [key,v] of JSON.parse(JSON.stringify(Object.entries(connections)))){
-                for(let a=0;a<v.length;a++){
-                    if(v[a]==socket.id){
-                        key = k;
-                        for(let a =0;a<connections[key].length; ++a){
-                            io.to(connections[key][a]).emit('user-left', socket.id);
-                        }
-                        var index = connections[key].indexOf(socket.id);
-
-                        connections[key].splice(index,1);
-                        if(connections[key].length===0){
-                            delete connections[key];
-                        }
+        socket.on("disconnect", () => {
+            const diffTime = Math.abs(new Date() - timeOnline[socket.id]);
+            for (const [key, users] of Object.entries(connections)) {
+                if (users.includes(socket.id)) {
+                    users.forEach((id) => {
+                        io.to(id).emit("user-left", socket.id);
+                    });
+                    connections[key] = users.filter((id) => id !== socket.id);
+                    if (connections[key].length === 0) {
+                        delete connections[key];
                     }
+                    break;
                 }
             }
-        })
+            delete timeOnline[socket.id];
+        });
     })
     return io;
-}
+    }

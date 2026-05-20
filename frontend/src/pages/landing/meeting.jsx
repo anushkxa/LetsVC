@@ -68,8 +68,69 @@ export default function MeetingComponent() {
   },[])
 
   let getUserMediaSuccess=(stream)=>{
+    try{
+      window.localStream.getTracks().forEach(track=>track.stop())
+    }catch(e) {console.log(e)}
+
+    window.localStream=stream;
+    localVideoRef.current.srcObject=stream;
+    for(let id in connections){
+      if(id===socketIdRef.current) continue;
+      connections[id].addStream(window.localStream)
+      connections[id].createOffer().then((description)=>{
+        connections[id].setLocalDescription(description)
+        .then(()=>{
+          socketIdRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
+        }).catch(e=>console.log(e))
+      })
+    }
+
+    stream.getTracks().forEach(track=>track.onended=()=>{
+      setVideo(false)
+      setAudio(false);
+      try{
+        let tracks= localVideoRef.current.srcObject.getTracks()
+        tracks.forEach(track=>track.stop())
+      } catch(e) {console.log(e)}
+
+      let blackSilence =(...args)=> new MediaStream([black(...args),silence()])
+      window.localStream=blackSilence();
+      localVideoRef.current.srcObject= window.localStream;
+
+      for(let id in connections){
+        connections[id].addStream(window.localStream)
+        connections[id].createOffer().then((description)=>{
+          connections[id].setLocalDescription(description)
+          .then(()=>{
+            socketRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
+          }).catch(e=>console.log(e)) 
+        })
+      }
+    })
 
   }
+
+  let silence=()=>{
+    let ctx= new AudioContext();
+    let oscillator = ctx.createOscillator();
+    let dst = oscillator.connect((ctx.createMediaStreamDestination()));
+
+    oscillator.start();
+    ctx.resume()
+    return Object.assign(dst.stream.getAudioTracks()[0],{enabled:false})
+  }
+
+  let black = ({ width = 640, height = 480 } = {}) => {
+  let canvas = Object.assign(document.createElement("canvas"), {
+    width,
+    height,
+  });
+  canvas.getContext("2d").fillRect(0, 0, width, height);
+  let stream = canvas.captureStream();
+  let track = stream.getVideoTracks()[0];
+  track.enabled = false;
+  return track;
+};
 
   let getUserMedia=()=>{
     if((video||videoAvailable) && (audio||audioAvailable)){
@@ -99,12 +160,15 @@ export default function MeetingComponent() {
       connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(()=>{
         if(signal.sdp.type==="offer"){
           connections[fromId].createAnswer().then((description)=>{
-            connectToSocketServer[fromId].setLocalDescription(description).then(()=>{
-              socketIdRef.current.emit("signal",fromId, JSON.stringify({"sdp":connections[fromId].localDescription}))
-            })
-          })
+            connections[fromId].setLocalDescription(description).then(()=>{
+              socketRef.current.emit("signal",fromId, JSON.stringify({"sdp":connections[fromId].localDescription}))
+            }).catch(e=>console.log(e))
+          }).catch(e=>console.log(e))
         }
-      })
+      }).catch(e=>console.log(e))
+    }
+    if(signal.ice){
+      connections[[fromId]].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e=>console.log(e))
     }
   }
  }
@@ -129,34 +193,47 @@ export default function MeetingComponent() {
             socketRef.current.emit("signal",SocketListId,JSON.stringify({"ice":event.candidate}));
           }
         }
-        connections[SocketListId].onaddstream=(event)=>{
-          let videoExists=videoRef.current.find(video => video.socketId===SocketListId);
-          if(videoExists){
-            setVideo(videos=>{
-              const updateVideos= videos.map(video=>
-                video.socketId === SocketListId ?{...video, stream: event.stream}:video
-              );
-              videoRef.current=updateVideos;
-              return updateVideos;
-            })
-          }else{
-            let newVideo={
-              socketId: SocketListId,
-              stream: event.stream,
-              autoPlay:true,
-              playsInline:true
-            }
-            setVideos(videos=>{
-              const updatedVideos = [...videos, newVideo];
-              videoRef.current=updatedVideos;
-              return updatedVideos;
+        connections[SocketListId].ontrack = (event) => {
+          console.log("TRACK RECEIVED", SocketListId);
+          let stream = event.streams[0];
+          let videoExists = videoRef.current.find(
+            (video) => video.socketId === SocketListId
+          );
+          if (videoExists) {
+            setVideos((videos) => {
+              const updateVideos = videos.map((video) =>
+                video.socketId === SocketListId
+              ? { ...video, stream }
+              : video
+            );
+            videoRef.current = updateVideos;
+            return updateVideos;
             });
-          }
-        };
+            } else {
+              let newVideo = {
+                socketId: SocketListId,
+              stream,
+              autoPlay: true,
+              playsInline: true
+            };
+
+    setVideos((videos) => {
+
+      const updatedVideos = [...videos, newVideo];
+
+      videoRef.current = updatedVideos;
+
+      return updatedVideos;
+    });
+  }
+};
 
         if(window.localStream !== undefined && window.localStream !==null){
           connections[SocketListId].addStream(window.localStream);
         }else{
+          let blackSilence =(...args)=> new MediaStream([black(...args),silence()])
+          window.localStream=blackSilence();
+          connections[SocketListId].addStream(window.localStream);
         }
       })
 
@@ -164,8 +241,14 @@ export default function MeetingComponent() {
         for(let id2 in connections){
           if(id2 === socketIdRef.current) continue
           try{
-            connections[id2].addStream(window.localStream)
+            window.localStream.getTracks().forEach((track) => {
+            connections[id2].addTrack(
+            track,
+              window.localStream
+            );
+          });
           }catch(e){
+            console.log(e)
           }
           connections[id2].createOffer().then((description)=>{
             connections[id2].setLocalDescription(description)
@@ -214,7 +297,23 @@ export default function MeetingComponent() {
           </div>
         </div>
       ) : (
-        <></>
+        <>
+        <video ref= {localVideoRef} autoPlay muted></video>
+        {videos.map((video) => (
+          <div key={video.socketId}>
+            <video
+              autoPlay
+              playsInline
+              ref={(ref) => {
+                if (ref && video.stream) {
+                  ref.srcObject = video.stream;
+                }
+              }}
+            />
+            <h2>{video.socketId}</h2>
+          </div>
+        ))}
+        </>
       )}
     </div>
   );
