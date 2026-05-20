@@ -21,6 +21,7 @@ export default function HomePage({ createMeetingId}) {
     }
   
     return (
+      <>
       <main className="landing">
         <header className="landing-nav">
           <h1 className="brand" style={{color: 'purple'}}>LetsVC</h1>
@@ -70,5 +71,13 @@ export default function HomePage({ createMeetingId}) {
           <span />
           <span />
       </main>
+      <footer style={{ backgroundColor: '#333', color: '#fff', padding: '20px', textAlign: 'center' }}>
+      <p>&copy; {new Date().getFullYear()} Anushka Ltd. . All rights reserved.</p>
+      <nav>
+        <a href="/privacy" style={{ color: '#fff', marginRight: '10px' }}>Privacy Policy</a>
+        <a href="/terms" style={{ color: '#fff' }}>Terms of Service</a>
+      </nav>
+    </footer>
+      </>
     )
   }

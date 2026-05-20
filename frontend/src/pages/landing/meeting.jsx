@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import "../../styles/meeting.css";
+import styles from "../../styles/meeting.module.css";
 import { io, Socket } from "socket.io-client";
+import {IconButton, Badge} from "@mui/material";
+import VideocamIcon from "@mui/icons-material/Videocam";
+import VideocamOffIcon from  "@mui/icons-material/VideocamOff";
+import CallEndIcon from "@mui/icons-material/CallEnd";
+import MicIcon from "@mui/icons-material/Mic";
+import MicOffIcon from "@mui/icons-material/MicOff";
+import StopScreenShareIcon from "@mui/icons-material/StopScreenShare";
+import ScreenShareIcon from "@mui/icons-material/ScreenShare";
+import ChatIcon from "@mui/icons-material/Chat";
+
 const server_url="http://localhost:8000";
 
 var connections={};
@@ -80,7 +90,7 @@ export default function MeetingComponent() {
       connections[id].createOffer().then((description)=>{
         connections[id].setLocalDescription(description)
         .then(()=>{
-          socketIdRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
+          socketRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
         }).catch(e=>console.log(e))
       })
     }
@@ -132,25 +142,24 @@ export default function MeetingComponent() {
   return track;
 };
 
-  let getUserMedia=()=>{
-    if((video||videoAvailable) && (audio||audioAvailable)){
-      navigator.mediaDevices.getUserMedia({video:video,audio:audio})
+  let getUserMedia = () => {
+  if (videoAvailable || audioAvailable) {
+    navigator.mediaDevices.getUserMedia({ video: videoAvailable, audio: audioAvailable })
       .then(getUserMediaSuccess)
-      .then((stream)=>{})
-      .catch((e)=>console.log(e));
-  }else{
-    try{
-      let tracks=localVideoRef.current.srcObject.getTracks();
-      tracks.forEach(track=>track.stop());
-    }catch(e){}
+      .catch((e) => console.log(e));
+  } else {
+    try {
+      let tracks = localVideoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    } catch(e) {}
   }
   }
 
- useEffect(()=>{
-  if(video!==undefined && audio !== undefined){
-    getUserMedia();
-  }
- },[audio,video]);
+  useEffect(() => {
+    if (video !== undefined && audio !== undefined && (video || audio)) {
+      getUserMedia();
+    }
+  }, [audio, video]);
 
 
  let gotMessageFromServer=(fromId,message)=>{
@@ -168,16 +177,23 @@ export default function MeetingComponent() {
       }).catch(e=>console.log(e))
     }
     if(signal.ice){
-      connections[[fromId]].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e=>console.log(e))
+      connections[fromId].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e=>console.log(e))
     }
   }
  }
+
+ let addMessage = (data, sender, socketIdSender) => {
+  setMessages((messages) => [...messages, { sender, data }]);
+  if (socketIdSender !== socketIdRef.current) {
+    setNewMessages((newMessages) => newMessages + 1);
+  }
+}
 
  let connectToSocketServer=()=>{
   socketRef.current= io.connect(server_url,{secure:false});
   socketRef.current.on('signal',gotMessageFromServer);
   socketRef.current.on("connect",()=>{
-    socketRef.current.emit("join-call",window.location.href);
+    socketRef.current.emit("join-call",window.location.href, username);
     socketIdRef.current=socketRef.current.id;
     socketRef.current.on("chat-message",addMessage);
     socketRef.current.on("user-left",(id)=>{
@@ -297,23 +313,48 @@ export default function MeetingComponent() {
           </div>
         </div>
       ) : (
-        <>
-        <video ref= {localVideoRef} autoPlay muted></video>
-        {videos.map((video) => (
-          <div key={video.socketId}>
+        <div className={styles.meetContainer}>
+
+          <div className={styles.buttonContainer}>
+            <IconButton style={{color:"white"}}>
+              {(video==true)? <VideocamIcon/> : <VideocamOffIcon/>}
+            </IconButton>
+            <IconButton style={{color:"red"}}>
+              <CallEndIcon/>
+            </IconButton>
+            <IconButton style={{color:"white"}}>
+              {(audio==true)? <MicIcon/> : <MicOffIcon/>}
+            </IconButton>
+            {(screenAvailable===true)?
+            <IconButton style={{color:"white"}}>
+              {(screen==true)? <ScreenShareIcon/> : <StopScreenShareIcon/>}
+            </IconButton>: <></> }
+
+            <Badge badgeContent={newMessages}>
+              <IconButton style={{color:"white"}}>
+              <ChatIcon/>
+              </IconButton>
+            </Badge>
+
+
+          </div>
+
+          <video className={styles.userVideo} ref= {localVideoRef} autoPlay muted></video>
+          {videos.map((video) => (
+          <div className={styles.confView} key={video.socketId}>
+            <h2>{video.socketId}</h2>
             <video
-              autoPlay
-              playsInline
-              ref={(ref) => {
-                if (ref && video.stream) {
-                  ref.srcObject = video.stream;
+              data-socket={video.socketId}
+              ref={ref=>{
+                if(ref && video.stream){
+                  ref.srcObject=video.stream;
                 }
               }}
+              autoPlay
             />
-            <h2>{video.socketId}</h2>
           </div>
-        ))}
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
