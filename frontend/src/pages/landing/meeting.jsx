@@ -320,6 +320,55 @@ const getPermissions = async () => {
     });
   }
 };
+  let getDisplayMediaSuccess=(stream)=>{
+    try{
+      window.localStream.getTracks().forEach(track=>track.stop())
+    }catch(e){console.log(e)}
+
+    window.localStream=stream;
+    localVideoRef.current.srcObject=stream;
+    for(let id in connections){
+      if(id=== socketIdRef.current)continue;
+      connections[id].addStream(window.localStream)
+      connections[id].createOffer().then((description)=>{
+        connections[id].setLocalDescription(description)
+        .then(()=>{
+          socketRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
+        })
+        .catch(e=>console.log(e));
+      })
+    }
+
+    stream.getTracks().forEach(track=>track.onended=()=>{
+      setScreen(false);
+      try{
+        let tracks= localVideoRef.current.srcObject.getTracks()
+        tracks.forEach(track=>track.stop())
+      } catch(e) {console.log(e)}
+
+      let blackSilence =(...args)=> new MediaStream([black(...args),silence()])
+      window.localStream=blackSilence();
+      localVideoRef.current.srcObject= window.localStream;
+
+      getUserMedia();
+    })
+  }
+  let getDisplayMedia=()=>{
+    if(navigator.mediaDevices.getDisplayMedia){
+      navigator.mediaDevices.getDisplayMedia({video:true, audio:true})
+      .then(getDisplayMediaSuccess)
+      .then((stream)=>{})
+      .catch((e)=>console.log(e));
+    }
+  }
+  useEffect(()=>{
+    if(screen !== undefined){
+      getDisplayMedia();
+    }
+  },[screen])
+  let handleScreen=()=>{
+    setScreen(!screen)
+  }
   return (
     <div>
       {askForUsername === true ? (
@@ -353,7 +402,7 @@ const getPermissions = async () => {
               {(audio==true)? <MicIcon/> : <MicOffIcon/>}
             </IconButton>
             {(screenAvailable===true)?
-            <IconButton style={{color:"white"}}>
+            <IconButton onClick={handleScreen} style={{color:"white"}}>
               {(screen==true)? <ScreenShareIcon/> : <StopScreenShareIcon/>}
             </IconButton>: <></> }
 
@@ -367,10 +416,10 @@ const getPermissions = async () => {
           </div>
 
           <video className={styles.userVideo} ref= {localVideoRef} autoPlay muted></video>
-          {videos.map((video) => (
-          <div className={styles.confView} key={video.socketId}>
-            <h2>{video.socketId}</h2>
-            <video
+          <div className={styles.confView}>
+            {videos.map((video) => (
+              <div key={video.socketId}>
+              <video className={styles.usersVideo}
               data-socket={video.socketId}
               ref={ref=>{
                 if(ref && video.stream){
@@ -378,9 +427,11 @@ const getPermissions = async () => {
                 }
               }}
               autoPlay
+              playsInline
             />
           </div>
           ))}
+          </div>
         </div>
       )}
     </div>

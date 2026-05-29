@@ -8,9 +8,10 @@
 .userVideo{
     position: absolute;
     bottom: 10vh;
-    height: 20vh;
+    height: 26vh;
     width: auto;
     right:0;
+    margin-right:15px;
     border-radius: 20px;
 }
 
@@ -27,4 +28,15 @@
 
 .confView{
     background-color: rgb(0, 9, 24);
+    display: flex;
+    padding:10px;
+    gap:10px;
+}
+
+.usersVideo {
+    width:auto;
+    height:40vh;
+    min-width: 30vw;
+    border-radius:20px;
+
 }
