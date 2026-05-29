@@ -33,45 +33,35 @@ export default function MeetingComponent() {
   let[screenAvailable,setScreenAvailable]=useState();
   let[messages,setMessages]=useState([]);
   let[message,setMessage]=useState("");
-  let[newMessages,setNewMessages]=useState(0);
+  let[newMessages,setNewMessages]=useState(3);
   let[askForUsername, setAskForUsername] = useState(true);
   let [username, setUsername] = useState("");
   const videoRef = useRef([]);
   let[videos,setVideos]=useState([]);
 
 
- const getPermissions=async () =>{
-  try{
-        const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
-        if(videoPermission){
-          setVideoAvailable(true);
-        }else{ setVideoAvailable(false);}
+const getPermissions = async () => {
+  try {
+    const userMediaStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
 
-        const audioPermission = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if(audioPermission){
-          setAudioAvailable(true);
-        }else{ setAudioAvailable(false);}
+    setVideoAvailable(true);
+    setAudioAvailable(true);
+    setScreenAvailable(!!navigator.mediaDevices.getDisplayMedia);
 
-        if(navigator.mediaDevices.getDisplayMedia){
-          setScreenAvailable(true);
-        }else{
-          setScreenAvailable(false);
-        }
+    window.localStream = userMediaStream;
 
-        if(videoAvailable || audioAvailable){
-          const userMediaStream= await navigator.mediaDevices.getUserMedia({video:videoAvailable, audio:audioAvailable});
-          if(userMediaStream){
-            window.localStream=userMediaStream;
-            if(localVideoRef.current){
-              localVideoRef.current.srcObject=userMediaStream;
-            }
-          }
-        }
-      }
-  catch(err){
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = userMediaStream;
+    }
+  } catch (err) {
     console.log(err);
+    setVideoAvailable(false);
+    setAudioAvailable(false);
   }
- }
+};
 
   useEffect(()=>{
     getPermissions();
@@ -85,15 +75,34 @@ export default function MeetingComponent() {
     window.localStream=stream;
     localVideoRef.current.srcObject=stream;
     for(let id in connections){
-      if(id===socketIdRef.current) continue;
-      connections[id].addStream(window.localStream)
-      connections[id].createOffer().then((description)=>{
-        connections[id].setLocalDescription(description)
-        .then(()=>{
-          socketRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
-        }).catch(e=>console.log(e))
-      })
+  if(id===socketIdRef.current) continue;
+
+  const senders = connections[id].getSenders();
+
+  stream.getTracks().forEach(track => {
+    const sender = senders.find(
+      s => s.track && s.track.kind === track.kind
+    );
+
+    if(sender){
+      sender.replaceTrack(track);
+    }else{
+      connections[id].addTrack(track, stream);
     }
+  });
+
+  connections[id].createOffer().then((description)=>{
+    connections[id].setLocalDescription(description)
+    .then(()=>{
+      socketRef.current.emit(
+        "signal",
+        id,
+        JSON.stringify({ sdp: connections[id].localDescription })
+      );
+    })
+    .catch(e=>console.log(e));
+  });
+}
 
     stream.getTracks().forEach(track=>track.onended=()=>{
       setVideo(false)
@@ -108,12 +117,11 @@ export default function MeetingComponent() {
       localVideoRef.current.srcObject= window.localStream;
 
       for(let id in connections){
-        connections[id].addStream(window.localStream)
         connections[id].createOffer().then((description)=>{
           connections[id].setLocalDescription(description)
           .then(()=>{
             socketRef.current.emit("signal",id,JSON.stringify({"sdp":connections[id].localDescription}))
-          }).catch(e=>console.log(e)) 
+          }).catch(e=>console.log(e))
         })
       }
     })
@@ -210,7 +218,7 @@ export default function MeetingComponent() {
           }
         }
         connections[SocketListId].ontrack = (event) => {
-          console.log("TRACK RECEIVED", SocketListId);
+          if (event.track.kind !== "video") return;
           let stream = event.streams[0];
           let videoExists = videoRef.current.find(
             (video) => video.socketId === SocketListId
@@ -244,13 +252,12 @@ export default function MeetingComponent() {
   }
 };
 
-        if(window.localStream !== undefined && window.localStream !==null){
-          connections[SocketListId].addStream(window.localStream);
-        }else{
-          let blackSilence =(...args)=> new MediaStream([black(...args),silence()])
-          window.localStream=blackSilence();
-          connections[SocketListId].addStream(window.localStream);
-        }
+        if (window.localStream === undefined || window.localStream === null) {
+  let blackSilence = (...args) =>
+    new MediaStream([black(...args), silence()]);
+
+  window.localStream = blackSilence();
+}
       })
 
       if(id=== socketIdRef.current){
@@ -291,8 +298,28 @@ export default function MeetingComponent() {
     setAskForUsername(false);
     getMedia();
   }
-  
 
+ let handleVideo = () => {
+  const newVideoState = !video;
+  setVideo(newVideoState);
+
+  if (window.localStream) {
+    window.localStream.getVideoTracks().forEach(track => {
+      track.enabled = newVideoState;
+    });
+  }
+};
+
+  let handleAudio = () => {
+  const newAudioState = !audio;
+  setAudio(newAudioState);
+
+  if (window.localStream) {
+    window.localStream.getAudioTracks().forEach(track => {
+      track.enabled = newAudioState;
+    });
+  }
+};
   return (
     <div>
       {askForUsername === true ? (
@@ -316,13 +343,13 @@ export default function MeetingComponent() {
         <div className={styles.meetContainer}>
 
           <div className={styles.buttonContainer}>
-            <IconButton style={{color:"white"}}>
+            <IconButton onClick={handleVideo} style={{color:"white"}}>
               {(video==true)? <VideocamIcon/> : <VideocamOffIcon/>}
             </IconButton>
             <IconButton style={{color:"red"}}>
               <CallEndIcon/>
             </IconButton>
-            <IconButton style={{color:"white"}}>
+            <IconButton onClick={handleAudio} style={{color:"white"}}>
               {(audio==true)? <MicIcon/> : <MicOffIcon/>}
             </IconButton>
             {(screenAvailable===true)?
@@ -330,7 +357,7 @@ export default function MeetingComponent() {
               {(screen==true)? <ScreenShareIcon/> : <StopScreenShareIcon/>}
             </IconButton>: <></> }
 
-            <Badge badgeContent={newMessages}>
+            <Badge badgeContent={newMessages} max={999} color='secondary' >
               <IconButton style={{color:"white"}}>
               <ChatIcon/>
               </IconButton>
