@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useNavigate, useEffect, useRef, useState } from "react";
 import styles from "../../styles/meeting.module.css";
 import { io, Socket } from "socket.io-client";
-import {IconButton, Badge} from "@mui/material";
+import {IconButton, Badge, Button} from "@mui/material";
+import TextField from "@mui/material/TextField";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import VideocamOffIcon from  "@mui/icons-material/VideocamOff";
 import CallEndIcon from "@mui/icons-material/CallEnd";
@@ -29,11 +30,11 @@ export default function MeetingComponent() {
   let [video,setVideo]=useState(false);
   let [audio,setAudio]=useState(false);
   let[screen,setScreen]=useState();
-  let[showModal,setModal]=useState();
+  let[showModal,setModal]=useState(true);
   let[screenAvailable,setScreenAvailable]=useState();
   let[messages,setMessages]=useState([]);
   let[message,setMessage]=useState("");
-  let[newMessages,setNewMessages]=useState(3);
+  let[newMessages,setNewMessages]=useState(0);
   let[askForUsername, setAskForUsername] = useState(true);
   let [username, setUsername] = useState("");
   const videoRef = useRef([]);
@@ -191,9 +192,9 @@ const getPermissions = async () => {
  }
 
  let addMessage = (data, sender, socketIdSender) => {
-  setMessages((messages) => [...messages, { sender, data }]);
+  setMessages((prevMessages) => [...prevMessages, { sender:sender, data:data }]);
   if (socketIdSender !== socketIdRef.current) {
-    setNewMessages((newMessages) => newMessages + 1);
+    setNewMessages((prevMessages) => prevMessages + 1);
   }
 }
 
@@ -203,6 +204,7 @@ const getPermissions = async () => {
   socketRef.current.on("connect",()=>{
     socketRef.current.emit("join-call",window.location.href, username);
     socketIdRef.current=socketRef.current.id;
+    socketRef.current.off("chat-message");
     socketRef.current.on("chat-message",addMessage);
     socketRef.current.on("user-left",(id)=>{
       setVideos((videos) =>
@@ -298,6 +300,7 @@ const getPermissions = async () => {
     setAskForUsername(false);
     getMedia();
   }
+  let routeTo= useNavigate();
 
  let handleVideo = () => {
   const newVideoState = !video;
@@ -369,6 +372,24 @@ const getPermissions = async () => {
   let handleScreen=()=>{
     setScreen(!screen)
   }
+
+  let sendMessage=()=>{
+    socketRef.current.emit("chat-message",message,username);
+    setMessage("");
+  }
+
+  let handleEndCall = () => {
+    try {
+        let tracks = localVideoRef.current.srcObject?.getTracks() || [];
+        tracks.forEach(track => track.stop());
+    } catch (e) {
+        console.log(e);
+    }
+
+    routeTo("/home");
+    }
+
+
   return (
     <div>
       {askForUsername === true ? (
@@ -390,12 +411,49 @@ const getPermissions = async () => {
         </div>
       ) : (
         <div className={styles.meetContainer}>
+        {showModal?<div className={styles.chatRoom}>
+            <div className={styles.chatContainer}>
+              <h1>Messages</h1>
+
+              <div className={styles.chattingDisplay}>
+
+                {messages.length>0 ? messages.map((item, index)=>{
+                  return(
+                    <div style={{marginBottom:"20px"}} key={index}>
+                      <p style={{fontWeight:"bold"}}>{item.sender}</p>
+                      <p>{item.data}</p>
+                    </div>
+                  )
+                }):<></>}
+
+              </div>
+              <div className={styles.chattingArea}>
+                <TextField value={message} onChange={(e)=>setMessage(e.target.value)} label="Chat" variant="outlined" sx={{ flex: 1,"& .MuiInputBase-input": {color: "white",
+                },
+                "& .MuiInputLabel-root": {
+                color: "white",
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: "white",
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: "white",
+    },
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderColor: "white",
+    },
+  }}
+/><Button onClick={sendMessage}>Send</Button>
+              </div>
+
+            </div>
+          </div>:<></>}
 
           <div className={styles.buttonContainer}>
             <IconButton onClick={handleVideo} style={{color:"white"}}>
               {(video==true)? <VideocamIcon/> : <VideocamOffIcon/>}
             </IconButton>
-            <IconButton style={{color:"red"}}>
+            <IconButton onClick={handleEndCall} style={{color:"red"}}>
               <CallEndIcon/>
             </IconButton>
             <IconButton onClick={handleAudio} style={{color:"white"}}>
@@ -407,7 +465,7 @@ const getPermissions = async () => {
             </IconButton>: <></> }
 
             <Badge badgeContent={newMessages} max={999} color='secondary' >
-              <IconButton style={{color:"white"}}>
+              <IconButton onClick={()=>setModal(!showModal)} style={{color:"white"}}>
               <ChatIcon/>
               </IconButton>
             </Badge>
