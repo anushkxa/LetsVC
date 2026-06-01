@@ -10,8 +10,8 @@
     bottom: 10vh;
     height: 26vh;
     width: auto;
-    right:0;
-    margin-right:15px;
+    left:0;
+    margin-left:15px;
     border-radius: 20px;
 }
 
@@ -39,4 +39,29 @@
     min-width: 30vw;
     border-radius:20px;
 
+}
+
+.chatRoom{
+    margin: 4vh;
+    padding-inline: 10px;
+    position: absolute;
+    height: 86vh;
+    width: 26vw;
+    right: 0;
+    background: rgb(26, 28, 41);
+    color: white;
+    border-radius: 10px;
+}
+
+.chatContainer{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chattingArea{
+    margin-top: auto; /* pushes to bottom */
+    padding: 5px;
+    display: flex;
+    gap: 10px;
 }

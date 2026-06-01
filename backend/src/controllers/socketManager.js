@@ -21,7 +21,9 @@ export const connectToSocket= (server)=>{
             }
             connections[path].push(socket.id)
             timeOnline[socket.id]= new Date();
-
+            if(!connections[path].includes(socket.id)){
+            connections[path].push(socket.id);
+            }
             // connections[path].forEach(elem=>{
             //     io.to(elem);
             // })
@@ -57,7 +59,7 @@ export const connectToSocket= (server)=>{
                     messages[matchingRoom]=[]
                 }
                 messages[matchingRoom].push({'sender':sender,'data':data,'socket-id-sender':socket.id})
-                console.log("message", KeyboardEvent,":",sender,data)
+                console.log("message",sender,data)
                 connections[matchingRoom].forEach((elem)=>{
                     io.to(elem).emit("chat-message",data,sender,socket.id);
                 })
