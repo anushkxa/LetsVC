@@ -1,8 +1,9 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 import axios from 'axios'
+import server from '../environment'
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1/users'
+  import.meta.env.VITE_API_BASE_URL ?? `${server}/api/v1/users`;
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -47,43 +48,47 @@ export function AuthProvider({ children }) {
     setUsername('')
   }
 
-  const getHistoryOfUser=async()=>{
-    try{
-      let request=await client.get("/get_all_activity",{
-        params:{
-          token:localStorage.getItem("token")
-        }
-      });
-      return request.data;
-    } catch (e){
-      throw e;
-    }
-  }
+  // const getHistoryOfUser=async()=>{
+  //   try{
+  //     let request=await client.get("/get_all_activity",{
+  //       params:{
+  //         token:localStorage.getItem("token")
+  //       }
+  //     });
+  //     return request.data;
+  //   } catch (e){
+  //     throw e;
+  //   }
+  // }
 
-  const addToUserHistory = async(meetingCode)=>{
-    try{
-      let request= await client.post("/add_to_activity",{
-        token:localStorage.getItem("token"),
-        meetingC_code: meetingCode
-      });
-      return request.status;
-    }catch(err){
-      throw err;
-    }
+  const addToUserHistory = async (meetingCode) => {
+  try {
+    const response = await client.post("/add_to_activity", {
+      token: localStorage.getItem("token"),
+      meetingCode: meetingCode,
+    });
+
+    return response.data;
+  } catch (err) {
+    console.error("Error adding history:", err);
+    throw err;
   }
+};
 
   const value = useMemo(
-    () => ({
-      token,
-      username,
-      isAuthenticated: Boolean(token),
-      register,
-      login,
-      logout,
-      apiBaseUrl: API_BASE_URL,
-    }),
-    [token, username],
-  )
+  () => ({
+    token,
+    username,
+    isAuthenticated: Boolean(token),
+    register,
+    login,
+    logout,
+    getHistoryOfUser,
+    addToUserHistory,
+    apiBaseUrl: API_BASE_URL,
+  }),
+  [token, username]
+)
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
