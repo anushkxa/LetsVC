@@ -48,18 +48,18 @@ export function AuthProvider({ children }) {
     setUsername('')
   }
 
-  // const getHistoryOfUser=async()=>{
-  //   try{
-  //     let request=await client.get("/get_all_activity",{
-  //       params:{
-  //         token:localStorage.getItem("token")
-  //       }
-  //     });
-  //     return request.data;
-  //   } catch (e){
-  //     throw e;
-  //   }
-  // }
+  const getHistoryOfUser=async()=>{
+    try{
+      let request=await client.get("/get_all_activity",{
+        params:{
+          token:localStorage.getItem("token")
+        }
+      });
+      return request.data;
+    } catch (e){
+      throw e;
+    }
+  }
 
   const addToUserHistory = async (meetingCode) => {
   try {
